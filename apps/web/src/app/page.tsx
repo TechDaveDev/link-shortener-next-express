@@ -1,103 +1,136 @@
-import Image from "next/image";
+'use client';
 
-export default function Home() {
+import { useState, FormEvent } from 'react';
+
+// Interfaz para tipar la respuesta de la API
+interface ShortLinkResponse {
+  id: number;
+  url: string;
+  shortCode: string;
+  clicks: number;
+  createdAt: string;
+  shortUrl: string;
+}
+
+export default function HomePage() {
+  const [url, setUrl] = useState('');
+  const [shortLink, setShortLink] = useState<ShortLinkResponse | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+    setShortLink(null);
+
+    if (!url) {
+      setError('Por favor, ingresa una URL.');
+      setLoading(false);
+      return;
+    }
+
+    try {
+      // Hacemos la petición a nuestro backend.
+      // Asegúrate de que el puerto (3001) coincida con el de tu API.
+      const response = await fetch('http://localhost:3001/api/links', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ url }),
+      });
+
+      if (!response.ok) {
+        throw new Error('No se pudo acortar el enlace. Inténtalo de nuevo.');
+      }
+
+      const data: ShortLinkResponse = await response.json();
+      setShortLink(data);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const copyToClipboard = () => {
+    if (shortLink) {
+      navigator.clipboard.writeText(shortLink.shortUrl);
+      // Usamos un modal custom en lugar de alert
+      const modal = document.getElementById('copy-modal');
+      if (modal) {
+        modal.classList.remove('hidden');
+        setTimeout(() => {
+          modal.classList.add('hidden');
+        }, 2000);
+      }
+    }
+  }
+
   return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+    <>
+      <main className="flex flex-col items-center justify-center min-h-screen bg-gray-900 text-white p-4 relative">
+        <h1 className="text-5xl font-extrabold mb-4 text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-600">
+          Acortador de Links
+        </h1>
+        <p className="text-gray-400 mb-8">
+          Pega tu URL larga abajo para obtener una versión corta.
+        </p>
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
+        <form onSubmit={handleSubmit} className="w-full max-w-lg">
+          <div className="flex items-center border-b-2 border-purple-500 py-2">
+            <input
+              className="appearance-none bg-transparent border-none w-full text-gray-300 mr-3 py-1 px-2 leading-tight focus:outline-none"
+              type="url"
+              placeholder="https://ejemplo-url-muy-larga.com/..."
+              aria-label="URL a acortar"
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
             />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
+            <button
+              className={`flex-shrink-0 bg-purple-600 hover:bg-purple-700 border-purple-600 hover:border-purple-700 text-sm border-4 text-white py-1 px-2 rounded-lg transition-colors ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
+              type="submit"
+              disabled={loading}
+            >
+              {loading ? 'Acortando...' : 'Acortar'}
+            </button>
+          </div>
+        </form>
+
+        {error && <p className="mt-4 text-red-400">{error}</p>}
+
+        {shortLink && (
+          <div className="mt-8 p-6 bg-gray-800 rounded-lg w-full max-w-lg shadow-lg">
+            <p className="text-gray-300">¡Tu enlace corto está listo!</p>
+            <div className="mt-2 flex items-center justify-between bg-gray-700 p-3 rounded-md">
+              <a
+                href={shortLink.shortUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-purple-400 font-mono break-all hover:underline"
+              >
+                {shortLink.shortUrl}
+              </a>
+              <button
+                onClick={copyToClipboard}
+                className="ml-4 p-2 bg-gray-600 hover:bg-gray-500 rounded-md transition-colors"
+                title="Copiar al portapapeles"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        )}
       </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
+
+      {/* Modal para la confirmación de copiado */}
+      <div id="copy-modal" className="hidden fixed top-5 right-5 bg-green-500 text-white py-2 px-4 rounded-lg shadow-lg transition-opacity duration-300">
+        ¡Copiado al portapapeles!
+      </div>
+    </>
   );
 }
+
