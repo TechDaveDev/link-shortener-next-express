@@ -80,8 +80,8 @@ export const getAllLinks = async (req: Request, res: Response) => {
     const whereCondition = search
       ? {
         OR: [
-          { url: { contains: search, mode: 'insensitive' } },
-          { shortCode: { contains: search, mode: 'insensitive' } },
+          { url: { contains: search } },
+          { shortCode: { contains: search } },
         ],
       }
       : {};
